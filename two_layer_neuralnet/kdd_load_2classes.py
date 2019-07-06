@@ -7,6 +7,7 @@ def kdd_load():
 # ##################################
     kdd_dataset = pd.read_csv('../../NSL-KDD_AAE_hara/NSL-KDD_AAE_hara/NSL_KDD_data/KDDTrain+.csv')
 
+    #使用したネットワークサービスを数値に変換
     kdd_dataset['service']= kdd_dataset['service'].map({
     "ftp_data":0,
     "other":1,
@@ -80,7 +81,9 @@ def kdd_load():
     "harvest":69
     })
 
+    #その接続に使用したプロトコルを数値に変換
     kdd_dataset['protocol_type'] = kdd_dataset['protocol_type'].map({'tcp':0,'udp':1,'icmp':2})
+    #その接続の状態を数値に変換
     kdd_dataset['flag'] = kdd_dataset['flag'].map({'SF':0,'S1':1,'REJ':2,'S2':3,'S0':4,'S3':5,'RSTO':6,'RSTR':7,'RSTOS0':8,'OTH':9,'SH':10})
 
     #攻撃を数値に置換
@@ -112,7 +115,7 @@ def kdd_load():
 
     #ラベルごとの枚数をカウントする
     print('TrainDataCount-------------------------------------------------------------')
-    num_eachAttack = kdd_dataset["AttackTypes"].value_counts()
+    num_eachAttack = kdd_dataset["AttackTypes"].value_counts() #要素の出現回数を格納
     print(num_eachAttack)
 
 # ##################################
@@ -250,13 +253,14 @@ def kdd_load():
 # # ダミー変数化
 # ##################################
     #TrainとTestを一旦連結
-    train_num = len(kdd_dataset) 
-    dataset = kdd_dataset.append(kdd_dataset_test)
-    dataset.fillna(0)
+    train_num = len(kdd_dataset) #125973
+    dataset = kdd_dataset.append(kdd_dataset_test) #dataset=kdd_dataset+kdd_dataset_test
+    #csvファイルをpandasで読み込んだ時,要素が空白であると欠損値(NaN)(Not a Number)だと見なされてしまう
+    dataset.fillna(0) #欠損値を0に穴埋めする
 
-    data_dummy_1 = pd.get_dummies(dataset['protocol_type'],drop_first=False)
-    dataset = pd.concat([dataset, data_dummy_1], axis=1)
-    dataset = dataset.drop("protocol_type", axis=1)
+    data_dummy_1 = pd.get_dummies(dataset['protocol_type'],drop_first= False) #ダミー変数を作成
+    dataset = pd.concat([dataset, data_dummy_1], axis=1) #ダミー変数を連結
+    dataset = dataset.drop("protocol_type", axis=1) #ダミー変数の更新(列の削除)
 
     data_dummy_2 = pd.get_dummies(dataset['service'], drop_first = False)
     dataset = pd.concat([dataset, data_dummy_2], axis=1)
@@ -265,21 +269,24 @@ def kdd_load():
     data_dummy_3 = pd.get_dummies(dataset['flag'], drop_first = False)
     dataset = pd.concat([dataset, data_dummy_3], axis=1)
     dataset = dataset.drop("flag", axis=1)
-    dataset.shape
+    dataset.shape #[148517,123]
 
     #TrainとTestを再度分離
-    kdd_dataset = dataset[:train_num]    
-    kdd_test  = dataset[train_num:] 
+    kdd_dataset = dataset[:train_num] #一番最初からtrain_numまでを取る    
+    kdd_test  = dataset[train_num:] #train_numから一番後ろまでを取る
+    kdd_dataset.shape #[125973,123]
+    kdd_test.shape #[22544,123]
 
 # ##################################
 # # ラベル情報の分離
 # ##################################
     #attack_labelを分離
-    attack_type = kdd_dataset['AttackTypes']
-    kdd_dataset = kdd_dataset.drop("AttackTypes", axis=1)
+    attack_type = kdd_dataset['AttackTypes'] #攻撃を数値化したラベル
+    kdd_dataset = kdd_dataset.drop("AttackTypes", axis=1) #AttackTypesの列を削除
     attack_type_test = kdd_test['AttackTypes']
     kdd_test = kdd_test.drop("AttackTypes", axis=1)
 
+    #kdd_dataset,kdd_testの全数値を0〜1までに正規化
     from sklearn import preprocessing
     mm = preprocessing.MinMaxScaler()
     kdd_dataset = mm.fit_transform(kdd_dataset)
@@ -289,13 +296,13 @@ def kdd_load():
     #chainerではfloat64は扱えない
     kdd_dataset = np.array(kdd_dataset,dtype='float32')
     kdd_test = np.array(kdd_test,dtype='float32')
-    #ラベルを1次元ベクトル化
+    #攻撃を数値化したラベルを1次元ベクトル化
     kdd_label = np.ravel(attack_type)
     kdd_label_test = np.ravel(attack_type_test)
     #float64からint32へ変換（リストのラベルは整数のみのため）
     kdd_label = np.array(kdd_label,dtype='int32')
     kdd_label_test = np.array(kdd_label_test,dtype='int32')
-    #ラベルを1次元ベクトル化
+    #攻撃を数値化したラベルを1次元ベクトル化
     kdd_type = np.ravel(attack_type)
     kdd_type_test = np.ravel(attack_type_test)
     #float64からint32へ変換（リストのラベルは整数のみのため）
